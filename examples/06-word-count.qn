@@ -1,0 +1,11 @@
+let text = "the quick brown fox jumps over the lazy dog the fox";
+
+let counts = {};
+for (word in split(text, " ")) {
+  counts[word] = (word in counts) ? counts[word] + 1 : 1;
+}
+
+let ranked = sort(keys(counts), fn(a, b) => counts[b] - counts[a]);
+for (word in slice(ranked, 0, 3)) {
+  print(`${pad_end(word, 6)} ${"*" * counts[word]} ${counts[word]}`);
+}

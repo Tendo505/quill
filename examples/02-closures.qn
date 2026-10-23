@@ -1,0 +1,27 @@
+// Functions are values, and they close over their environment.
+fn make_counter(start) {
+  let count = start;
+  return {
+    next: fn() { count += 1; return count; },
+    reset: fn() { count = start; },
+  };
+}
+
+let c = make_counter(10);
+c.next();
+c.next();
+print("after two calls:", c.next());
+c.reset();
+print("after reset:", c.next());
+
+// Each loop iteration gets a fresh binding, so closures capture each value.
+let callbacks = [];
+for (i in range(3)) {
+  push(callbacks, fn() => i * 10);
+}
+print(map(callbacks, fn(f) => f()));
+
+// Functions can return functions (currying)
+fn adder(a) => fn(b) => a + b;
+let add5 = adder(5);
+print("add5(3) =", add5(3));

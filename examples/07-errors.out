@@ -1,0 +1,3 @@
+caught: Index 10 out of range for length 3 (line 4)
+age: 42
+rejected: NEGATIVE for "-7"

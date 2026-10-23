@@ -1,0 +1,22 @@
+// ASCII Mandelbrot set
+let palette = " .:-=+*#%@";
+let rows = [];
+for (y in range(-12, 13)) {
+  let line = "";
+  for (x in range(-39, 18)) {
+    let cr = x / 20;
+    let ci = y / 10;
+    let zr = 0;
+    let zi = 0;
+    let i = 0;
+    while (i < 30 and zr * zr + zi * zi < 4) {
+      let t = zr * zr - zi * zi + cr;
+      zi = 2 * zr * zi + ci;
+      zr = t;
+      i += 1;
+    }
+    line += palette[floor(i / 30 * (len(palette) - 1))];
+  }
+  push(rows, line);
+}
+print(join(rows, "\n"));

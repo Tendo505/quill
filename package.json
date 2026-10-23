@@ -1,0 +1,28 @@
+{
+  "name": "quill-lang",
+  "version": "1.0.0",
+  "description": "Quill: a small, friendly scripting language with a tree-walking interpreter, static resolver, REPL and browser playground.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "quill": "bin/quill.js"
+  },
+  "files": ["dist", "bin"],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test",
+    "typecheck": "tsc --noEmit",
+    "repl": "npm run build && node bin/quill.js",
+    "site": "npm run build && node scripts/build-site.js",
+    "serve": "npm run site && npx --yes serve@14.2.4 _site"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "keywords": ["programming-language", "interpreter", "compiler", "pratt-parser", "typescript"],
+  "license": "MIT"
+}

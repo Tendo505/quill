@@ -1,0 +1,43 @@
+// Conway's Game of Life on a small wrapping grid
+const W = 12;
+const H = 8;
+
+fn empty() => map(range(H), fn(_) => map(range(W), fn(_) => false));
+
+fn show(g) {
+  print(join(map(g, fn(row) => join(map(row, fn(c) => c ? "#" : "."))), "\n"));
+}
+
+fn neighbours(g, r, c) {
+  let n = 0;
+  for (dr in [-1, 0, 1]) {
+    for (dc in [-1, 0, 1]) {
+      if (dr == 0 and dc == 0) { continue; }
+      if (g[(r + dr) % H][(c + dc) % W]) { n += 1; }
+    }
+  }
+  return n;
+}
+
+fn step(g) {
+  let next = empty();
+  for (r in range(H)) {
+    for (c in range(W)) {
+      let n = neighbours(g, r, c);
+      next[r][c] = n == 3 or (g[r][c] and n == 2);
+    }
+  }
+  return next;
+}
+
+// A glider
+let grid = empty();
+for (cell in [[0, 1], [1, 2], [2, 0], [2, 1], [2, 2]]) {
+  grid[cell[0]][cell[1]] = true;
+}
+
+for (gen in range(3)) {
+  print(`generation ${gen}`);
+  show(grid);
+  grid = step(grid);
+}

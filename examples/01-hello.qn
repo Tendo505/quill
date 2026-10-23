@@ -1,0 +1,22 @@
+// Welcome to Quill! Press Run (or Ctrl+Enter).
+let name = "world";
+print(`Hello, ${name}!`);
+
+// Variables, numbers and strings
+const year = 2026;
+let langs = ["Quill", "TypeScript", "JavaScript"];
+print(`${len(langs)} languages, first is ${langs[0]}, last is ${langs[-1]}`);
+
+// Maps use { key: value }, with dot or bracket access
+let person = { name: "Ada", born: 1815 };
+person.age = year - person.born;
+print(person);
+
+// Control flow
+for (lang in langs) {
+  if (lang == "Quill") {
+    print(`${lang} <- you are here`);
+  } else {
+    print(lang);
+  }
+}

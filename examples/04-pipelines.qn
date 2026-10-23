@@ -1,0 +1,24 @@
+// The pipe operator passes the left side as the first argument:
+//   x |> f(a)   is the same as   f(x, a)
+let orders = [
+  { item: "keyboard", price: 89, qty: 1 },
+  { item: "cable", price: 9, qty: 4 },
+  { item: "monitor", price: 249, qty: 2 },
+  { item: "mouse", price: 39, qty: 1 },
+];
+
+let total = orders
+  |> map(fn(o) => o.price * o.qty)
+  |> sum;
+print("order total:", total);
+
+let big_ticket = orders
+  |> filter(fn(o) => o.price >= 50)
+  |> map(fn(o) => upper(o.item))
+  |> join(", ");
+print("over $50:", big_ticket);
+
+let by_value = sort(orders, fn(a, b) => b.price * b.qty - a.price * a.qty);
+for (o in by_value) {
+  print(pad_end(o.item, 10), pad_start(str(o.price * o.qty), 5));
+}

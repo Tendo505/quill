@@ -1,0 +1,25 @@
+// Runtime errors can be caught; `catch` receives { message, line, col }.
+try {
+  let xs = [1, 2, 3];
+  print(xs[10]);
+} catch (e) {
+  print(`caught: ${e.message} (line ${e.line})`);
+}
+
+// You can throw any value.
+fn parse_age(s) {
+  let n = num(s);
+  if (n < 0) { throw { code: "NEGATIVE", input: s }; }
+  return n;
+}
+
+for (input in ["42", "-7"]) {
+  try {
+    print("age:", parse_age(input));
+  } catch (e) {
+    print("rejected:", e.code, "for", repr(e.input));
+  }
+}
+
+// Uncaught errors show a compiler-style diagnostic. Uncomment to see one:
+// print("total: " + 5);
