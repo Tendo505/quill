@@ -196,87 +196,88 @@ export class Interpreter implements Interp {
 
   // ---------- expressions ----------
 
+  // `eval` sits on the recursion path of every nested expression and call, so
+  // it is kept deliberately small: V8 sizes a stack frame by the function's
+  // locals, and smaller frames let Quill programs recurse deeper. Bulkier,
+  // non-recursive cases live in helper methods below.
   eval(e: Expr): Value {
     switch (e.kind) {
       case "Literal": return e.value;
-
-      case "Template": {
-        let out = e.strings[0];
-        for (let i = 0; i < e.exprs.length; i++) out += stringify(this.eval(e.exprs[i])) + e.strings[i + 1];
-        return out;
-      }
-
       case "Variable": return this.lookup(e.name, e.depth, e.pos);
-
-      case "Assign": {
-        const env = e.depth === undefined ? this.globals : this.env.ancestor(e.depth);
-        if (!env.vars.has(e.name)) this.error(`Undefined variable '${e.name}'`, e.pos);
-        if (env.isConst(e.name)) this.error(`Cannot assign to const '${e.name}'`, e.pos);
-        const value = e.op === "="
-          ? this.eval(e.value)
-          : this.arith(compoundOp(e.op), env.vars.get(e.name)!, this.eval(e.value), e.pos);
-        env.vars.set(e.name, value);
-        return value;
-      }
-
-      case "Unary": {
-        const v = this.eval(e.operand);
-        if (e.op === "-") {
-          if (typeof v !== "number") this.error(`Cannot negate a ${typeOf(v)}`, e.pos);
-          return -v;
-        }
-        return !isTruthy(v);
-      }
-
-      case "Logical": {
-        const left = this.eval(e.left);
-        if (e.op === "or") return isTruthy(left) ? left : this.eval(e.right);
-        return isTruthy(left) ? this.eval(e.right) : left;
-      }
-
-      case "Conditional":
-        return isTruthy(this.eval(e.test)) ? this.eval(e.then) : this.eval(e.otherwise);
-
       case "Binary": return this.binary(e.op, this.eval(e.left), this.eval(e.right), e.pos);
-
-      case "Call": {
-        const callee = this.eval(e.callee);
-        const args = e.args.map((a) => this.eval(a));
-        return this.call(callee, args, e.pos);
-      }
-
+      case "Conditional": return isTruthy(this.eval(e.test)) ? this.eval(e.then) : this.eval(e.otherwise);
+      case "Call": return this.call(this.eval(e.callee), this.evalArgs(e.args), e.pos);
       case "Index": return this.index(this.eval(e.object), this.eval(e.index), e.pos);
-
-      case "SetIndex": {
-        const object = this.eval(e.object);
-        const key = this.eval(e.index);
-        const rhs = this.eval(e.value);
-        const value = e.op === "=" ? rhs : this.arith(compoundOp(e.op), this.index(object, key, e.pos), rhs, e.pos);
-        if (Array.isArray(object)) {
-          object[this.listIndex(object, key, e.pos)] = value;
-        } else if (object instanceof Map) {
-          if (!isKey(key)) this.error(`A ${typeOf(key)} cannot be used as a map key`, e.pos);
-          object.set(key, value);
-        } else {
-          this.error(`Cannot assign into a ${typeOf(object)}`, e.pos);
-        }
-        return value;
-      }
-
-      case "List": return e.items.map((x) => this.eval(x));
-
-      case "Map": {
-        const map = new Map<Key, Value>();
-        for (const [k, v] of e.entries) {
-          const key = this.eval(k);
-          if (!isKey(key)) this.error(`A ${typeOf(key)} cannot be used as a map key`, k.pos);
-          map.set(key, this.eval(v));
-        }
-        return map;
-      }
-
+      case "Logical": return this.logical(e.op, e.left, e.right);
+      case "Unary": return this.unary(e.op, this.eval(e.operand), e.pos);
+      case "Assign": return this.assign(e);
+      case "SetIndex": return this.setIndex(e);
+      case "Template": return this.template(e.strings, e.exprs);
+      case "List": return this.evalArgs(e.items);
+      case "Map": return this.mapLiteral(e.entries);
       case "Function": return this.makeFunction(e, this.env);
     }
+  }
+
+  private evalArgs(exprs: Expr[]): Value[] {
+    const out = new Array<Value>(exprs.length);
+    for (let i = 0; i < exprs.length; i++) out[i] = this.eval(exprs[i]);
+    return out;
+  }
+
+  private logical(op: "and" | "or", leftExpr: Expr, rightExpr: Expr): Value {
+    const left = this.eval(leftExpr);
+    if (op === "or") return isTruthy(left) ? left : this.eval(rightExpr);
+    return isTruthy(left) ? this.eval(rightExpr) : left;
+  }
+
+  private unary(op: "-" | "!" | "not", v: Value, pos: Position): Value {
+    if (op !== "-") return !isTruthy(v);
+    if (typeof v !== "number") this.error(`Cannot negate a ${typeOf(v)}`, pos);
+    return -v;
+  }
+
+  private template(strings: string[], exprs: Expr[]): string {
+    let out = strings[0];
+    for (let i = 0; i < exprs.length; i++) out += stringify(this.eval(exprs[i])) + strings[i + 1];
+    return out;
+  }
+
+  private assign(e: Expr & { kind: "Assign" }): Value {
+    const env = e.depth === undefined ? this.globals : this.env.ancestor(e.depth);
+    if (!env.vars.has(e.name)) this.error(`Undefined variable '${e.name}'`, e.pos);
+    if (env.isConst(e.name)) this.error(`Cannot assign to const '${e.name}'`, e.pos);
+    const value = e.op === "="
+      ? this.eval(e.value)
+      : this.arith(compoundOp(e.op), env.vars.get(e.name)!, this.eval(e.value), e.pos);
+    env.vars.set(e.name, value);
+    return value;
+  }
+
+  private setIndex(e: Expr & { kind: "SetIndex" }): Value {
+    const object = this.eval(e.object);
+    const key = this.eval(e.index);
+    const rhs = this.eval(e.value);
+    const value = e.op === "=" ? rhs : this.arith(compoundOp(e.op), this.index(object, key, e.pos), rhs, e.pos);
+    if (Array.isArray(object)) {
+      object[this.listIndex(object, key, e.pos)] = value;
+    } else if (object instanceof Map) {
+      if (!isKey(key)) this.error(`A ${typeOf(key)} cannot be used as a map key`, e.pos);
+      object.set(key, value);
+    } else {
+      this.error(`Cannot assign into a ${typeOf(object)}`, e.pos);
+    }
+    return value;
+  }
+
+  private mapLiteral(entries: [Expr, Expr][]): Map<Key, Value> {
+    const map = new Map<Key, Value>();
+    for (const [k, v] of entries) {
+      const key = this.eval(k);
+      if (!isKey(key)) this.error(`A ${typeOf(key)} cannot be used as a map key`, k.pos);
+      map.set(key, this.eval(v));
+    }
+    return map;
   }
 
   private lookup(name: string, depth: number | undefined, pos: Position): Value {
@@ -297,6 +298,9 @@ export class Interpreter implements Interp {
       const expected = min === max ? `${min}` : max === Infinity ? `at least ${min}` : `${min} to ${max}`;
       this.error(`${callee.name}() expects ${expected} argument${expected === "1" ? "" : "s"}, got ${args.length}`, pos);
     }
+    // Invoke Quill functions directly rather than through callee.call(): every
+    // host stack frame per Quill call reduces how deep Quill programs can recurse.
+    if (callee instanceof QuillFunction) return this.invoke(callee, args, pos);
     return callee.call(this, args, pos);
   }
 
@@ -304,19 +308,31 @@ export class Interpreter implements Interp {
     this.tick(pos);
     if (this.depth >= this.maxDepth) this.error(`Stack overflow (more than ${this.maxDepth} nested calls)`, pos);
     const env = new Environment(fn.closure);
-    fn.decl.params.forEach((p, i) => env.define(p, args[i]));
+    const params = fn.decl.params;
+    for (let i = 0; i < params.length; i++) env.define(params[i], args[i]);
+
+    // The body runs inline here instead of via execBlock(), for the same stack-depth reason.
+    const previous = this.env;
+    this.env = env;
     this.depth++;
     try {
-      const c = this.execBlock(fn.decl.body, env);
-      const result = c === Completion.Return ? this.returnValue : null;
-      this.returnValue = null;
-      return result;
+      const body = fn.decl.body;
+      this.hoist(body, env);
+      for (let i = 0; i < body.length; i++) {
+        if (this.exec(body[i]) === Completion.Return) {
+          const result = this.returnValue;
+          this.returnValue = null;
+          return result;
+        }
+      }
+      return null;
     } catch (e) {
       // The host stack can run out before maxDepth. Do no real work here (the
       // stack is nearly full); conversion succeeds a few frames further up.
       if (e instanceof RangeError) this.error("Stack overflow (too much recursion)", pos);
       throw e;
     } finally {
+      this.env = previous;
       this.depth--;
     }
   }

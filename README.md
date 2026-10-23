@@ -73,6 +73,7 @@ source ──▶ Lexer ──▶ Parser ──▶ Resolver ──▶ Interpreter
 
 - **Resolved variable depths over name lookup.** The resolver annotates each variable with its scope distance, so the interpreter jumps straight to the right environment. This also fixes the classic closure bug where a function defined before a shadowing `let` would see the wrong variable (there's a test for exactly that).
 - **Scope elision.** The resolver marks blocks that declare nothing, so neither pass creates a scope for them. The CPU profile showed 18% of time in garbage collection and 10% constructing environments. Skipping those scopes, plus lazily allocating const-tracking sets, made recursive calls **~2x faster** (`fib(25)`: 365 ms → 187 ms).
+- **Small frames on the hot path.** The first CI run failed on macOS: 400 levels of Quill recursion overflowed the JavaScript stack there. Two changes fixed it. Quill calls now skip two wrapper frames, and the core `eval` switch keeps only its tiny, recursive cases inline, with the bulky cases moved into helpers (V8 sizes each frame by a function's locals). Together these took the maximum recursion depth from **664 to 1,250** calls and, as a bonus, made tight loops **2x faster** (1M iterations: 1.09 s → 0.53 s).
 - **The host never crashes.** Infinite loops hit a step budget that `try`/`catch` cannot swallow. Deep recursion is caught both by a depth limit and by converting a JavaScript `RangeError`, so every failure becomes a normal Quill error with a position.
 
 ## Getting started
@@ -154,7 +155,15 @@ CI type-checks and runs the suite on Linux, macOS and Windows with Node 20 and 2
 
 ## Performance
 
-A tree-walking interpreter trades speed for simplicity. On a laptop with Node 25, recursive `fib(25)` (~250k calls) takes about 190 ms, and a 1M-iteration `while` loop takes about 1.1 s. A natural next step would be compiling the AST to bytecode for a stack-based VM.
+A tree-walking interpreter trades speed for simplicity. On a laptop with Node 25:
+
+| Program | Time |
+| --- | --- |
+| Recursive `fib(25)` (~250k calls) | ~160 ms |
+| 1M-iteration `while` loop | ~530 ms |
+| Max recursion depth | 1,000 (configurable limit; ~1,250 before the host stack runs out) |
+
+A natural next step would be compiling the AST to bytecode for a stack-based VM.
 
 ## License
 
