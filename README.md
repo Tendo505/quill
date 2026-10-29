@@ -10,7 +10,11 @@
 **▶ Try it in the browser: https://tendo505.github.io/quill/**
 
 <p align="center">
-  <img src="docs/screenshot.png" width="760" alt="The Quill playground: editor on the left, program output on the right">
+  <img src="docs/screenshots/1-start.png" width="49%" alt="Playground" title="Playground">
+  <img src="docs/screenshots/2-closures.png" width="49%" alt="Closures" title="Closures">
+  <img src="docs/screenshots/3-pipes.png" width="49%" alt="Pipe operator" title="Pipe operator">
+  <img src="docs/screenshots/3b-mandelbrot.png" width="49%" alt="ASCII Mandelbrot" title="ASCII Mandelbrot">
+  <img src="docs/screenshots/4-error.png" width="49%" alt="Friendly runtime errors" title="Friendly runtime errors">
 </p>
 
 ```js
