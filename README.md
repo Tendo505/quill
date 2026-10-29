@@ -9,6 +9,10 @@
 
 **▶ Try it in the browser: https://tendo505.github.io/quill/**
 
+<p align="center">
+  <img src="docs/screenshot.png" width="760" alt="The Quill playground: editor on the left, program output on the right">
+</p>
+
 ```js
 fn make_counter() {
   let count = 0;
